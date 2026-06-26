@@ -1,0 +1,27 @@
+BookMyCourier Quote Engine - Version 1.2.0
+
+Added
+- Replaced generated vehicle thumbnails with supplied BookMyCourier van images.
+
+Changed
+- Removed the top “Instant Courier Quote” lozenge.
+- Vehicle cards now show vehicle image, vehicle name and use-case description only.
+- Updated version number to 1.2.0 so WordPress can replace the existing plugin when uploading the ZIP.
+
+Retained from 1.1.0
+- Automatic quote generation once both addresses are entered.
+- Distance remains hidden from the customer-facing quote panel.
+- Book Now button sends customers to the configured payment URL with quote details.
+
+BookMyCourier Quote Engine
+
+Version 1.1.0
+- Added vehicle illustration assets for Small Van, Medium Van, Large Van and Luton Van.
+- Removed visible “From £...” pricing from vehicle cards.
+- Removed visible distance display from the quote panel.
+- Replaced manual quote button with automatic quote calculation after both addresses are entered.
+- Added Book Now button that sends the customer to the configured payment URL with quote details in the query string.
+- Added Book Now Payment URL setting.
+
+Version 1.0.0
+- Initial quote engine with Google Places and Routes API.
