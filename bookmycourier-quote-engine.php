@@ -1,14 +1,14 @@
 <?php
 /**
  * Plugin Name: BookMyCourier Quote Engine
- * Description: Instant courier quote calculator using Google Places Autocomplete and Google Routes API.
- * Version: 1.5.1
+ * Description: Instant courier quote, same-page booking details and test payment flow for BookMyCourier.
+ * Version: 2.0.1
  * Author: BookMyCourier
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BMCQE_VERSION', '1.5.1');
+define('BMCQE_VERSION', '2.0.1');
 define('BMCQE_PATH', plugin_dir_path(__FILE__));
 define('BMCQE_URL', plugin_dir_url(__FILE__));
 
@@ -19,46 +19,49 @@ require_once BMCQE_PATH . 'includes/booking.php';
 register_activation_hook(__FILE__, 'bmcqe_activate');
 function bmcqe_activate() {
     bmcqe_install_defaults();
-    bmcqe_maybe_create_payment_page();
+    bmcqe_maybe_create_booking_page();
 }
 
 add_action('admin_init', 'bmcqe_upgrade_checks');
 function bmcqe_upgrade_checks() {
     bmcqe_install_defaults();
-    bmcqe_maybe_create_payment_page();
+    bmcqe_maybe_create_booking_page();
 }
 
 function bmcqe_install_defaults() {
     $defaults = [
         'google_api_key' => '',
-        'payment_url' => '/payment-details/',
+        'payment_url' => '/complete-your-booking/',
         'small_base' => '35', 'small_included' => '10', 'small_rate' => '1.50',
         'medium_base' => '50', 'medium_included' => '10', 'medium_rate' => '1.80',
         'large_base' => '65', 'large_included' => '10', 'large_rate' => '2.10',
         'luton_base' => '80', 'luton_included' => '10', 'luton_rate' => '2.50',
+        'admin_email' => get_option('admin_email'),
     ];
 
     $existing = get_option('bmcqe_settings', []);
-    if (!is_array($existing)) {
-        $existing = [];
-    }
+    if (!is_array($existing)) $existing = [];
 
+    // Preserve existing settings while adding any new defaults.
     update_option('bmcqe_settings', array_merge($defaults, $existing));
 }
 
-function bmcqe_maybe_create_payment_page() {
-    if (!current_user_can('manage_options')) {
-        return;
-    }
+function bmcqe_maybe_create_booking_page() {
+    if (!current_user_can('manage_options')) return;
 
-    $existing_page = get_page_by_path('payment-details');
+    $existing_page = get_page_by_path('complete-your-booking');
     if ($existing_page && $existing_page->post_status !== 'trash') {
+        $settings = get_option('bmcqe_settings', []);
+        if (is_array($settings)) {
+            $settings['payment_url'] = '/complete-your-booking/';
+            update_option('bmcqe_settings', $settings);
+        }
         return;
     }
 
     $page_id = wp_insert_post([
-        'post_title'   => 'Payment Details',
-        'post_name'    => 'payment-details',
+        'post_title'   => 'Complete Your Booking',
+        'post_name'    => 'complete-your-booking',
         'post_content' => '[bookmycourier_payment]',
         'post_status'  => 'publish',
         'post_type'    => 'page',
@@ -66,10 +69,8 @@ function bmcqe_maybe_create_payment_page() {
 
     if (!is_wp_error($page_id) && $page_id) {
         $settings = get_option('bmcqe_settings', []);
-        if (!is_array($settings)) {
-            $settings = [];
-        }
-        $settings['payment_url'] = '/payment-details/';
+        if (!is_array($settings)) $settings = [];
+        $settings['payment_url'] = '/complete-your-booking/';
         update_option('bmcqe_settings', $settings);
     }
 }
@@ -78,7 +79,7 @@ add_shortcode('bookmycourier_quote', 'bmcqe_render_quote');
 function bmcqe_render_quote() {
     $settings = get_option('bmcqe_settings', []);
     $api_key = isset($settings['google_api_key']) ? trim($settings['google_api_key']) : '';
-    $payment_url = isset($settings['payment_url']) ? trim($settings['payment_url']) : '/payment-details/';
+    $payment_url = isset($settings['payment_url']) ? trim($settings['payment_url']) : '/complete-your-booking/';
 
     wp_enqueue_style('bmcqe-style', BMCQE_URL . 'assets/css/style.css', [], BMCQE_VERSION);
     wp_enqueue_script('bmcqe-quote', BMCQE_URL . 'assets/js/quote.js', [], BMCQE_VERSION, true);
@@ -168,59 +169,82 @@ function bmcqe_render_quote() {
             </div>
 
             <div class="bmcqe-section bmcqe-options-section">
-                <h3><span>4</span> Collection & Delivery Options</h3>
+                <h3><span>4</span> Collection Options</h3>
+                <p class="bmcqe-section-intro">Choose whether you need collection as soon as possible or on a specific date.</p>
 
-                <div class="bmcqe-options-grid">
-                    <div class="bmcqe-option-group bmcqe-collection-options">
-                        <label>Collection</label>
-                        <div class="bmcqe-choice-row">
-                            <label class="bmcqe-choice selected">
-                                <input type="radio" name="bmcqe_collection_option" value="asap" checked>
-                                <span>ASAP collection</span>
-                            </label>
-                            <label class="bmcqe-choice">
-                                <input type="radio" name="bmcqe_collection_option" value="dated">
-                                <span>Dated collection</span>
-                            </label>
-                        </div>
+                <div class="bmcqe-selector-panel bmcqe-collection-panel">
+                    <div class="bmcqe-selector-grid bmcqe-selector-grid-two">
+                        <label class="bmcqe-selector-card selected">
+                            <input type="radio" name="bmcqe_collection_option" value="asap" checked>
+                            <span class="bmcqe-selector-icon">⚡</span>
+                            <strong>ASAP Collection</strong>
+                            <em>Collect as soon as possible, subject to availability.</em>
+                        </label>
+
+                        <label class="bmcqe-selector-card">
+                            <input type="radio" name="bmcqe_collection_option" value="dated">
+                            <span class="bmcqe-selector-icon">📅</span>
+                            <strong>Dated Collection</strong>
+                            <em>Choose a collection date and a simple AM or PM window.</em>
+                        </label>
                     </div>
 
-                    <div class="bmcqe-option-group bmcqe-dated-collection bmcqe-hidden">
-                        <label for="bmcqe_collection_date">Collection Date</label>
-                        <input id="bmcqe_collection_date" type="date" min="<?php echo esc_attr($today); ?>" value="<?php echo esc_attr($today); ?>">
+                    <div class="bmcqe-dated-collection bmcqe-hidden">
+                        <div class="bmcqe-date-window">
+                            <label for="bmcqe_collection_date">Collection Date
+                                <input id="bmcqe_collection_date" type="date" min="<?php echo esc_attr($today); ?>" value="<?php echo esc_attr($today); ?>">
+                            </label>
 
-                        <label class="bmcqe-sub-label">Collection Window</label>
-                        <div class="bmcqe-choice-row bmcqe-period-row">
-                            <label class="bmcqe-choice selected">
-                                <input type="radio" name="bmcqe_collection_period" value="am" checked>
-                                <span>AM</span>
-                            </label>
-                            <label class="bmcqe-choice">
-                                <input type="radio" name="bmcqe_collection_period" value="pm">
-                                <span>PM</span>
-                            </label>
+                            <div>
+                                <span class="bmcqe-sub-label">Collection Window</span>
+                                <div class="bmcqe-selector-grid bmcqe-selector-grid-two bmcqe-period-row">
+                                    <label class="bmcqe-selector-card bmcqe-mini-card selected">
+                                        <input type="radio" name="bmcqe_collection_period" value="am" checked>
+                                        <strong>AM</strong>
+                                        <em>Morning collection window</em>
+                                    </label>
+                                    <label class="bmcqe-selector-card bmcqe-mini-card">
+                                        <input type="radio" name="bmcqe_collection_period" value="pm">
+                                        <strong>PM</strong>
+                                        <em>Afternoon collection window</em>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="bmcqe-option-group bmcqe-delivery-options">
-                        <label>Delivery Option</label>
-                        <div class="bmcqe-choice-row">
-                            <label class="bmcqe-choice selected" id="bmcqe_same_day_choice">
-                                <input type="radio" name="bmcqe_delivery_option" value="same_day" checked>
-                                <span>Same Day</span>
-                            </label>
-                            <label class="bmcqe-choice">
-                                <input type="radio" name="bmcqe_delivery_option" value="next_day">
-                                <span>Next Day <strong>Save 5%</strong></span>
-                            </label>
-                            <label class="bmcqe-choice">
-                                <input type="radio" name="bmcqe_delivery_option" value="within_2_days">
-                                <span>Within 2 days <strong>Save 10%</strong></span>
-                            </label>
-                        </div>
-                        <small id="bmcqe_delivery_note">Same Day is available when booked before 12pm.</small>
                     </div>
                 </div>
+            </div>
+
+            <div class="bmcqe-section bmcqe-options-section">
+                <h3><span>5</span> Delivery Options</h3>
+                <p class="bmcqe-section-intro">Pick the delivery speed that suits the job. Flexible delivery options reduce the quote automatically.</p>
+
+                <div class="bmcqe-selector-grid bmcqe-delivery-selector-grid">
+                    <label class="bmcqe-selector-card selected" id="bmcqe_same_day_choice">
+                        <input type="radio" name="bmcqe_delivery_option" value="same_day" checked>
+                        <span class="bmcqe-selector-icon">🚀</span>
+                        <strong>Same Day</strong>
+                        <em>Priority delivery on the same day.</em>
+                    </label>
+
+                    <label class="bmcqe-selector-card">
+                        <input type="radio" name="bmcqe_delivery_option" value="next_day">
+                        <span class="bmcqe-selector-icon">🌙</span>
+                        <strong>Next Day</strong>
+                        <em>Save 5% when delivery can be completed next day.</em>
+                        <b>Save 5%</b>
+                    </label>
+
+                    <label class="bmcqe-selector-card">
+                        <input type="radio" name="bmcqe_delivery_option" value="within_2_days">
+                        <span class="bmcqe-selector-icon">📦</span>
+                        <strong>Within 2 Days</strong>
+                        <em>Best value option for non-urgent deliveries.</em>
+                        <b>Save 10%</b>
+                    </label>
+                </div>
+
+                <small id="bmcqe_delivery_note" class="bmcqe-delivery-note">Same Day is available when booked before 12pm.</small>
             </div>
 
             <div class="bmcqe-result-panel" aria-live="polite">
@@ -231,7 +255,7 @@ function bmcqe_render_quote() {
                 </div>
                 <div class="bmcqe-book-box">
                     <button id="bmcqe_book_now" type="button" disabled>Book Now</button>
-                    <small>Proceed to payment details</small>
+                    <small>Complete your booking in the next step</small>
                 </div>
                 <p id="bmcqe_message"></p>
             </div>
@@ -239,7 +263,7 @@ function bmcqe_render_quote() {
             <div class="bmcqe-trust-row">
                 <div><strong>Fully Insured</strong><span>Your goods are in safe hands</span></div>
                 <div><strong>Fast & Reliable</strong><span>Professional courier service</span></div>
-                <div><strong>Secure Booking</strong><span>Payment details handled securely</span></div>
+                <div><strong>Secure Booking</strong><span>Test payment active for now</span></div>
             </div>
         </div>
     </div>

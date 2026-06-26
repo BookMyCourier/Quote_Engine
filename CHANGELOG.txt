@@ -1,3 +1,10 @@
+Version 2.0.1
+- Fixed Book Now flow to be more resilient if quote data is stored but the button remains disabled.
+- Reworked collection options into a clearer card-style selector.
+- Reworked delivery options into a separate card-style selector.
+- Kept Same Day, Next Day (5% saving), and Within 2 Days (10% saving).
+- Improved mobile-friendly option layout.
+
 BookMyCourier Quote Engine Changelog
 
 Version 2.0.0

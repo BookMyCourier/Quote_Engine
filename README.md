@@ -1,13 +1,23 @@
 # BookMyCourier Quote Engine
 
-Custom WordPress quote and booking plugin for BookMyCourier.
+Version 2.0.0
 
 ## Shortcodes
 
-`[bookmycourier_quote]` - displays the quote and booking flow.
+- `[bookmycourier_quote]` — Quote calculator
+- `[bookmycourier_payment]` — Complete Your Booking / test payment page
 
-`[bookmycourier_payment]` - displays the payment handoff/summary page.
+## Version 2.0.0
 
-## Version
+Added:
+- Complete Your Booking page
+- Customer details form
+- Collection and delivery contacts
+- Goods description and special instructions
+- Booking summary
+- Test payment completion
+- Booking reference generation
+- Admin and customer notification emails
+- Stored test bookings in WordPress options
 
-2.0.0
+Stripe is not active in this version. No real payment is taken.

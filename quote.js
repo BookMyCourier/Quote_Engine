@@ -1,128 +1,73 @@
 (function(){
+  'use strict';
+
   let quoteTimer = null;
-  let isCalculating = false;
-  let pendingCalculate = false;
-  let latestQuote = null;
+  let lastQuote = null;
+
+  function storeQuote(){
+    try { if (lastQuote) sessionStorage.setItem('bmcqeLastQuote', JSON.stringify(lastQuote)); } catch(e) {}
+  }
 
   window.bmcqeInitGoogle = function(){
     const collection = document.getElementById('bmcqe_collection');
     const delivery = document.getElementById('bmcqe_delivery');
     if (!collection || !delivery || !window.google || !google.maps || !google.maps.places) return;
 
-    const collectionAutocomplete = new google.maps.places.Autocomplete(collection, { componentRestrictions: { country: 'gb' } });
-    const deliveryAutocomplete = new google.maps.places.Autocomplete(delivery, { componentRestrictions: { country: 'gb' } });
+    const options = { componentRestrictions: { country: 'gb' }, fields: ['formatted_address', 'geometry', 'name'] };
+
+    const collectionAutocomplete = new google.maps.places.Autocomplete(collection, options);
+    const deliveryAutocomplete = new google.maps.places.Autocomplete(delivery, options);
 
     collectionAutocomplete.addListener('place_changed', scheduleQuote);
     deliveryAutocomplete.addListener('place_changed', scheduleQuote);
   };
 
-  function selectedVehicle(){
-    const selected = document.querySelector('input[name="bmcqe_vehicle"]:checked');
-    return selected ? selected.value : 'small';
+  function qs(id){ return document.getElementById(id); }
+
+  function selected(name){
+    const el = document.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : '';
   }
 
-  function selectedRadio(name, fallback){
-    const selected = document.querySelector('input[name="' + name + '"]:checked');
-    return selected ? selected.value : fallback;
+  function setSelectedStyles(){
+    document.querySelectorAll('.bmcqe-vehicle, .bmcqe-choice, .bmcqe-selector-card').forEach(function(label){
+      const input = label.querySelector('input');
+      label.classList.toggle('selected', !!input && input.checked);
+    });
   }
 
-  function effectiveCollectionDate(){
-    const data = window.bmcqeData || {};
-    const today = data.today || '';
-    const collectionDate = document.getElementById('bmcqe_collection_date');
-    const collectionOption = selectedRadio('bmcqe_collection_option', 'asap');
-    return collectionOption === 'dated' && collectionDate ? collectionDate.value : today;
-  }
+  function updateOptionVisibility(){
+    const collectionOption = selected('bmcqe_collection_option') || 'asap';
+    const dated = document.querySelector('.bmcqe-dated-collection');
+    if (dated) dated.classList.toggle('bmcqe-hidden', collectionOption !== 'dated');
 
-  function values(){
-    const collection = document.getElementById('bmcqe_collection');
-    const delivery = document.getElementById('bmcqe_delivery');
-    const collectionDate = document.getElementById('bmcqe_collection_date');
+    const today = (window.bmcqeData && bmcqeData.today) ? bmcqeData.today : '';
+    const currentHour = (window.bmcqeData && bmcqeData.currentHour) ? Number(bmcqeData.currentHour) : 0;
+    const cutoff = (window.bmcqeData && bmcqeData.sameDayCutoffHour) ? Number(bmcqeData.sameDayCutoffHour) : 12;
+    const dateInput = qs('bmcqe_collection_date');
+    const sameDayChoice = qs('bmcqe_same_day_choice');
+    const sameDayRadio = sameDayChoice ? sameDayChoice.querySelector('input') : null;
+    const note = qs('bmcqe_delivery_note');
 
-    return {
-      collection: collection ? collection.value.trim() : '',
-      delivery: delivery ? delivery.value.trim() : '',
-      vehicle: selectedVehicle(),
-      collectionOption: selectedRadio('bmcqe_collection_option', 'asap'),
-      collectionDate: collectionDate ? collectionDate.value : '',
-      collectionPeriod: selectedRadio('bmcqe_collection_period', 'am'),
-      deliveryOption: selectedRadio('bmcqe_delivery_option', 'same_day')
-    };
-  }
+    const activeDate = collectionOption === 'asap' ? today : (dateInput ? dateInput.value : today);
+    const sameDayUnavailable = activeDate === today && currentHour >= cutoff;
 
-  function setMessage(text){
-    const msg = document.getElementById('bmcqe_message');
-    if (msg) msg.textContent = text || '';
-  }
-
-  function setPrice(text, note){
-    const price = document.getElementById('bmcqe_price');
-    const priceNote = document.getElementById('bmcqe_price_note');
-    if (price) price.textContent = text;
-    if (priceNote) priceNote.textContent = note || '';
-  }
-
-  function setBookEnabled(enabled){
-    const button = document.getElementById('bmcqe_book_now');
-    if (button) button.disabled = !enabled;
-  }
-
-  function sameDayIsAvailable(){
-    const data = window.bmcqeData || {};
-    const today = data.today || '';
-    const cutoff = parseInt(data.sameDayCutoffHour || 12, 10);
-    const currentHour = parseInt(data.currentHour || 0, 10);
-    const selectedDate = effectiveCollectionDate();
-
-    // Future collection dates can use Same Day for that selected collection date.
-    if (selectedDate && today && selectedDate > today) return true;
-    return currentHour < cutoff;
-  }
-
-  function updateDeliveryAvailability(){
-    const sameDayChoice = document.getElementById('bmcqe_same_day_choice');
-    const sameDayRadio = document.querySelector('input[name="bmcqe_delivery_option"][value="same_day"]');
-    const nextDayRadio = document.querySelector('input[name="bmcqe_delivery_option"][value="next_day"]');
-    const note = document.getElementById('bmcqe_delivery_note');
-    const available = sameDayIsAvailable();
-
-    if (sameDayChoice) sameDayChoice.classList.toggle('disabled', !available);
-    if (sameDayRadio) sameDayRadio.disabled = !available;
-
-    if (!available && sameDayRadio && sameDayRadio.checked && nextDayRadio) {
-      nextDayRadio.checked = true;
+    if (sameDayChoice && sameDayRadio) {
+      sameDayChoice.classList.toggle('disabled', sameDayUnavailable);
+      sameDayRadio.disabled = sameDayUnavailable;
+      if (sameDayUnavailable && sameDayRadio.checked) {
+        const nextDay = document.querySelector('input[name="bmcqe_delivery_option"][value="next_day"]');
+        if (nextDay) nextDay.checked = true;
+      }
     }
 
     if (note) {
-      note.textContent = available
-        ? 'Same Day is available when booked before 12pm. Next Day saves 5%. Within 2 days saves 10%.'
-        : 'Same Day is no longer available for today. Next Day has been selected and saves 5%.';
+      note.textContent = sameDayUnavailable
+        ? 'Same Day is unavailable for today after 12pm. Please choose Next Day or Within 2 days.'
+        : 'Same Day is available when booked before 12pm.';
     }
 
-    updateChoiceStates(false);
-  }
-
-  function updateChoiceStates(shouldUpdateDelivery = true){
-    document.querySelectorAll('.bmcqe-choice').forEach(label => {
-      const input = label.querySelector('input');
-      label.classList.toggle('selected', !!input && input.checked);
-      label.classList.toggle('disabled', !!input && input.disabled);
-    });
-
-    const collectionOption = selectedRadio('bmcqe_collection_option', 'asap');
-    const datedPanel = document.querySelector('.bmcqe-dated-collection');
-    if (datedPanel) datedPanel.classList.toggle('bmcqe-hidden', collectionOption !== 'dated');
-
-    if (shouldUpdateDelivery) updateDeliveryAvailability();
-  }
-
-  function requiredOptionsReady(){
-    const v = values();
-    if (v.collectionOption === 'dated') {
-      if (!v.collectionDate) return false;
-      if (!['am', 'pm'].includes(v.collectionPeriod)) return false;
-    }
-    return true;
+    setSelectedStyles();
   }
 
   function scheduleQuote(){
@@ -130,136 +75,173 @@
     quoteTimer = setTimeout(calculateQuote, 650);
   }
 
+  function getPayload(){
+    const collection = qs('bmcqe_collection');
+    const delivery = qs('bmcqe_delivery');
+    const dateInput = qs('bmcqe_collection_date');
+
+    return {
+      collection: collection ? collection.value.trim() : '',
+      delivery: delivery ? delivery.value.trim() : '',
+      vehicle: selected('bmcqe_vehicle') || 'small',
+      collection_option: selected('bmcqe_collection_option') || 'asap',
+      collection_date: dateInput ? dateInput.value : '',
+      collection_period: selected('bmcqe_collection_period') || 'am',
+      delivery_option: selected('bmcqe_delivery_option') || 'same_day'
+    };
+  }
+
+  function setMessage(message){
+    const msg = qs('bmcqe_message');
+    if (msg) msg.textContent = message || '';
+  }
+
+  function setLoading(isLoading){
+    const note = qs('bmcqe_price_note');
+    if (note && isLoading) note.textContent = 'Calculating your quote...';
+  }
+
+  function resetQuote(noteText){
+    lastQuote = null;
+    try { sessionStorage.removeItem('bmcqeLastQuote'); } catch(e) {}
+    const price = qs('bmcqe_price');
+    const note = qs('bmcqe_price_note');
+    const button = qs('bmcqe_book_now');
+
+    if (price) price.textContent = '—';
+    if (note) note.textContent = noteText || 'Enter both addresses to calculate your quote.';
+    if (button) button.disabled = true;
+  }
+
   function calculateQuote(){
-    updateDeliveryAvailability();
-    const v = values();
+    updateOptionVisibility();
+    const payload = getPayload();
 
-    latestQuote = null;
-    setBookEnabled(false);
-
-    if (!v.collection || !v.delivery) {
-      setPrice('—', 'Enter both addresses to calculate your quote.');
-      setMessage('');
-      return;
-    }
-
-    if (!requiredOptionsReady()) {
-      setPrice('—', 'Choose your collection option to calculate your quote.');
-      setMessage('');
+    if (!payload.collection || !payload.delivery) {
+      resetQuote('Enter both addresses to calculate your quote.');
       return;
     }
 
     if (!window.bmcqeData || !bmcqeData.hasApiKey) {
-      setPrice('—', 'Google API key has not been installed.');
-      setMessage('');
+      resetQuote('Google API key has not been added yet.');
       return;
     }
 
-    if (isCalculating) {
-      pendingCalculate = true;
-      return;
-    }
-
-    isCalculating = true;
-    pendingCalculate = false;
-    setPrice('Calculating...', 'Checking the best driving route.');
     setMessage('');
+    setLoading(true);
 
-    const fd = new FormData();
-    fd.append('action', 'bmcqe_get_quote');
-    fd.append('nonce', bmcqeData.nonce);
-    fd.append('collection', v.collection);
-    fd.append('delivery', v.delivery);
-    fd.append('vehicle', v.vehicle);
-    fd.append('collection_option', v.collectionOption);
-    fd.append('collection_date', v.collectionDate);
-    fd.append('collection_period', v.collectionPeriod);
-    fd.append('delivery_option', v.deliveryOption);
+    const formData = new FormData();
+    formData.append('action', 'bmcqe_get_quote');
+    formData.append('nonce', bmcqeData.nonce);
+    Object.keys(payload).forEach(function(key){ formData.append(key, payload[key]); });
 
-    fetch(bmcqeData.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
-      .then(r => r.json())
-      .then(data => {
-        if (!data.success) throw new Error(data.data || 'Could not calculate quote.');
-        latestQuote = {
-          collection: v.collection,
-          delivery: v.delivery,
-          vehicle: v.vehicle,
-          collectionOption: v.collectionOption,
-          collectionDate: data.data.collection_date || v.collectionDate,
-          collectionPeriod: data.data.collection_period || v.collectionPeriod,
-          deliveryOption: v.deliveryOption,
-          price: data.data.price,
-          miles: data.data.miles
-        };
+    fetch(bmcqeData.ajaxUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        if (!data || !data.success) {
+          resetQuote('Check your options and try again.');
+          setMessage(data && data.data && data.data.message ? data.data.message : 'Could not calculate that route.');
+          return;
+        }
 
-        let note = 'Same Day delivery selected.';
-        if (data.data.delivery_option === 'next_day') note = 'Includes 5% saving for Next Day delivery.';
-        if (data.data.delivery_option === 'within_2_days') note = 'Includes 10% saving for delivery within 2 days.';
+        lastQuote = Object.assign({}, payload, data.data);
+        storeQuote();
 
-        setPrice('£' + data.data.price, note);
-        setBookEnabled(true);
+        const price = qs('bmcqe_price');
+        const note = qs('bmcqe_price_note');
+        const button = qs('bmcqe_book_now');
+
+        if (price) price.textContent = '£' + data.data.price;
+
+        let noteText = 'Based on your selected vehicle and delivery option.';
+        if (Number(data.data.discount_percent) > 0) {
+          noteText = data.data.discount_percent + '% saving applied to this quote.';
+        }
+        if (note) note.textContent = noteText;
+        if (button) button.disabled = false;
       })
-      .catch(err => {
-        setPrice('—', 'Please check the details and try again.');
-        setMessage(err.message);
-      })
-      .finally(() => {
-        isCalculating = false;
-        if (pendingCalculate) scheduleQuote();
+      .catch(function(){
+        resetQuote('Something went wrong calculating the quote.');
       });
   }
 
-  document.addEventListener('change', function(e){
-    if (!e.target) return;
+  function goToBooking(){
+    if (!window.bmcqeData || !bmcqeData.paymentUrl) return;
 
-    if (e.target.name === 'bmcqe_vehicle') {
-      document.querySelectorAll('.bmcqe-vehicle').forEach(el => el.classList.remove('selected'));
-      const card = e.target.closest('.bmcqe-vehicle');
-      if (card) card.classList.add('selected');
-      scheduleQuote();
+    if (!lastQuote) {
+      try {
+        const stored = sessionStorage.getItem('bmcqeLastQuote');
+        if (stored) lastQuote = JSON.parse(stored);
+      } catch(e) {}
     }
 
+    if (!lastQuote) {
+      const payload = getPayload();
+      const priceText = (qs('bmcqe_price') && qs('bmcqe_price').textContent) ? qs('bmcqe_price').textContent.replace('£','').trim() : '';
+      if (payload.collection && payload.delivery && priceText && priceText !== '—') {
+        lastQuote = Object.assign({}, payload, { price: priceText, miles: '', discount_percent: 0 });
+      }
+    }
+
+    if (!lastQuote || !lastQuote.collection || !lastQuote.delivery || !lastQuote.price) {
+      setMessage('Please wait for the quote to calculate, then try Book Now again.');
+      scheduleQuote();
+      return;
+    }
+
+    const params = new URLSearchParams();
+    [
+      'collection','delivery','vehicle','price','miles','collection_option',
+      'collection_date','collection_period','delivery_option','discount_percent'
+    ].forEach(function(key){
+      if (lastQuote[key] !== undefined && lastQuote[key] !== null) params.set(key, lastQuote[key]);
+    });
+
+    const separator = bmcqeData.paymentUrl.indexOf('?') === -1 ? '?' : '&';
+    window.location.href = bmcqeData.paymentUrl + separator + params.toString();
+  }
+
+  document.addEventListener('input', function(e){
+    if (!e.target) return;
+    if (e.target.id === 'bmcqe_collection' || e.target.id === 'bmcqe_delivery') scheduleQuote();
+  });
+
+  document.addEventListener('change', function(e){
+    if (!e.target) return;
     if (
+      e.target.name === 'bmcqe_vehicle' ||
       e.target.name === 'bmcqe_collection_option' ||
       e.target.name === 'bmcqe_collection_period' ||
       e.target.name === 'bmcqe_delivery_option' ||
       e.target.id === 'bmcqe_collection_date'
     ) {
-      updateChoiceStates();
-      scheduleQuote();
-    }
-  });
-
-  document.addEventListener('input', function(e){
-    if (!e.target) return;
-    if (e.target.id === 'bmcqe_collection' || e.target.id === 'bmcqe_delivery') {
+      updateOptionVisibility();
       scheduleQuote();
     }
   });
 
   document.addEventListener('click', function(e){
-    if (!e.target || e.target.id !== 'bmcqe_book_now') return;
-    if (!latestQuote) {
-      setMessage('Please enter both addresses and wait for your quote first.');
+    const button = e.target && e.target.closest ? e.target.closest('#bmcqe_book_now') : null;
+    if (button) {
+      e.preventDefault();
+      goToBooking();
       return;
     }
 
-    const baseUrl = (window.bmcqeData && bmcqeData.paymentUrl) ? bmcqeData.paymentUrl : '/payment-details/';
-    const url = new URL(baseUrl, window.location.origin);
-    url.searchParams.set('collection', latestQuote.collection);
-    url.searchParams.set('delivery', latestQuote.delivery);
-    url.searchParams.set('vehicle', latestQuote.vehicle);
-    url.searchParams.set('collection_option', latestQuote.collectionOption);
-    url.searchParams.set('collection_date', latestQuote.collectionDate);
-    url.searchParams.set('collection_period', latestQuote.collectionPeriod);
-    url.searchParams.set('delivery_option', latestQuote.deliveryOption);
-    url.searchParams.set('price', latestQuote.price);
-    url.searchParams.set('miles', latestQuote.miles);
-    window.location.href = url.toString();
+    const selector = e.target && e.target.closest ? e.target.closest('.bmcqe-selector-card, .bmcqe-vehicle') : null;
+    if (selector && !selector.classList.contains('disabled')) {
+      const input = selector.querySelector('input');
+      if (input && !input.disabled) {
+        input.checked = true;
+        updateOptionVisibility();
+        scheduleQuote();
+      }
+    }
   });
 
   document.addEventListener('DOMContentLoaded', function(){
-    updateChoiceStates();
+    updateOptionVisibility();
+    setSelectedStyles();
     scheduleQuote();
   });
 })();
