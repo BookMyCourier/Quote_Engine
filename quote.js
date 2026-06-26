@@ -153,9 +153,14 @@
 
         if (price) price.textContent = '£' + data.data.price;
 
-        let noteText = 'Based on your selected vehicle and delivery option.';
+        let noteText = '';
+        if (data.data.rate_code) {
+          noteText = data.data.vehicle_label + ' rate: £' + data.data.base + ' base, includes ' + data.data.included + ' miles, then £' + data.data.rate + '/mile. Code: ' + data.data.rate_code + '.';
+        } else {
+          noteText = 'Based on your selected vehicle and delivery option.';
+        }
         if (Number(data.data.discount_percent) > 0) {
-          noteText = data.data.discount_percent + '% saving applied to this quote.';
+          noteText += ' ' + data.data.discount_percent + '% saving applied.';
         }
         if (note) note.textContent = noteText;
         if (button) button.disabled = false;
@@ -191,8 +196,9 @@
 
     const params = new URLSearchParams();
     [
-      'collection','delivery','vehicle','price','miles','collection_option',
-      'collection_date','collection_period','delivery_option','discount_percent'
+      'collection','delivery','vehicle','vehicle_label','price','miles','rate_code','base','included','rate','extra_miles',
+      'price_before_discount','discount_amount','collection_option','collection_date','collection_period',
+      'delivery_option','collection_discount_percent','delivery_discount_percent','discount_percent'
     ].forEach(function(key){
       if (lastQuote[key] !== undefined && lastQuote[key] !== null) params.set(key, lastQuote[key]);
     });
