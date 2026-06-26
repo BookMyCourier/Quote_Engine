@@ -2,24 +2,26 @@
 /**
  * Plugin Name: BookMyCourier Quote Engine
  * Description: Instant courier quote calculator using Google Places Autocomplete and Google Routes API.
- * Version: 1.2.0
+ * Version: 2.0.0
  * Author: BookMyCourier
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BMCQE_VERSION', '1.2.0');
+define('BMCQE_VERSION', '2.0.0');
 define('BMCQE_PATH', plugin_dir_path(__FILE__));
 define('BMCQE_URL', plugin_dir_url(__FILE__));
 
 require_once BMCQE_PATH . 'includes/settings.php';
 require_once BMCQE_PATH . 'includes/ajax.php';
+require_once BMCQE_PATH . 'includes/booking.php';
 
 register_activation_hook(__FILE__, 'bmcqe_activate');
 function bmcqe_activate() {
     $defaults = [
         'google_api_key' => '',
         'payment_url' => '/payment-details/',
+        'admin_email' => get_option('admin_email'),
         'small_base' => '35', 'small_included' => '10', 'small_rate' => '1.50',
         'medium_base' => '50', 'medium_included' => '10', 'medium_rate' => '1.80',
         'large_base' => '65', 'large_included' => '10', 'large_rate' => '2.10',
@@ -126,9 +128,61 @@ function bmcqe_render_quote() {
                 </div>
                 <div class="bmcqe-book-box">
                     <button id="bmcqe_book_now" type="button" disabled>Book Now</button>
-                    <small>Proceed to payment details</small>
+                    <small>Enter details and continue to secure payment</small>
                 </div>
                 <p id="bmcqe_message"></p>
+            </div>
+
+            <div id="bmcqe_booking_panel" class="bmcqe-booking-panel" hidden>
+                <div class="bmcqe-booking-head">
+                    <div>
+                        <h3>Complete Your Booking</h3>
+                        <p>We only ask for the details needed to secure the courier.</p>
+                    </div>
+                    <button id="bmcqe_edit_quote" type="button">Edit quote</button>
+                </div>
+
+                <div class="bmcqe-booking-grid">
+                    <label>
+                        Full Name
+                        <input id="bmcqe_customer_name" type="text" autocomplete="name" placeholder="Your name">
+                    </label>
+                    <label>
+                        Mobile Number
+                        <input id="bmcqe_customer_phone" type="tel" autocomplete="tel" placeholder="Best contact number">
+                    </label>
+                    <label>
+                        Email Address
+                        <input id="bmcqe_customer_email" type="email" autocomplete="email" placeholder="Booking confirmation email">
+                    </label>
+                    <label>
+                        Collection Date
+                        <input id="bmcqe_collection_date" type="date">
+                    </label>
+                    <label>
+                        Preferred Time
+                        <select id="bmcqe_collection_time">
+                            <option value="ASAP">As soon as possible</option>
+                            <option value="Morning">Morning</option>
+                            <option value="Afternoon">Afternoon</option>
+                            <option value="Evening">Evening</option>
+                            <option value="Specific time requested">Specific time requested</option>
+                        </select>
+                    </label>
+                    <label class="bmcqe-full">
+                        What are you sending?
+                        <textarea id="bmcqe_items" rows="3" placeholder="Briefly describe the items, size and any access notes"></textarea>
+                    </label>
+                </div>
+
+                <div class="bmcqe-booking-summary">
+                    <div>
+                        <span>Quote total</span>
+                        <strong id="bmcqe_booking_price">—</strong>
+                    </div>
+                    <button id="bmcqe_continue_payment" type="button">Continue to Payment</button>
+                </div>
+                <p id="bmcqe_booking_message" class="bmcqe-booking-message"></p>
             </div>
 
             <div class="bmcqe-trust-row">

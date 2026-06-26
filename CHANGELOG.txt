@@ -1,27 +1,24 @@
-BookMyCourier Quote Engine - Version 1.2.0
+BookMyCourier Quote Engine Changelog
 
-Added
-- Replaced generated vehicle thumbnails with supplied BookMyCourier van images.
+Version 2.0.0
+- Built from Version 1.2.0 codebase.
+- Added same-page booking details panel after quote generation.
+- Added minimum-click flow: quote calculates automatically, Book Now opens details, Continue to Payment passes all booking information to the payment page.
+- Added [bookmycourier_payment] shortcode for a payment handoff page.
+- Preserved Version 1.2 vehicle images, automatic quote calculation and admin pricing settings.
+- Updated plugin version metadata to 2.0.0.
 
-Changed
-- Removed the top “Instant Courier Quote” lozenge.
-- Vehicle cards now show vehicle image, vehicle name and use-case description only.
-- Updated version number to 1.2.0 so WordPress can replace the existing plugin when uploading the ZIP.
-
-Retained from 1.1.0
-- Automatic quote generation once both addresses are entered.
-- Distance remains hidden from the customer-facing quote panel.
-- Book Now button sends customers to the configured payment URL with quote details.
-
-BookMyCourier Quote Engine
+Version 1.2.0
+- Added supplied van thumbnail images.
+- Removed Instant Courier Quote lozenge.
+- Retained automatic quote and Book Now functionality.
 
 Version 1.1.0
-- Added vehicle illustration assets for Small Van, Medium Van, Large Van and Luton Van.
-- Removed visible “From £...” pricing from vehicle cards.
-- Removed visible distance display from the quote panel.
-- Replaced manual quote button with automatic quote calculation after both addresses are entered.
-- Added Book Now button that sends the customer to the configured payment URL with quote details in the query string.
-- Added Book Now Payment URL setting.
+- Added vehicle images.
+- Removed From £ display on vehicle cards.
+- Hidden distance calculation from customer view.
+- Added automatic quote generation.
+- Added Book Now button and payment URL setting.
 
 Version 1.0.0
-- Initial quote engine with Google Places and Routes API.
+- Initial quote engine.
