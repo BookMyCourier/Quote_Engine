@@ -2,21 +2,33 @@
 /**
  * Plugin Name: BookMyCourier Quote Engine
  * Description: Instant courier quote calculator using Google Places Autocomplete and Google Routes API.
- * Version: 1.4.0
+ * Version: 1.5.1
  * Author: BookMyCourier
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BMCQE_VERSION', '1.4.0');
+define('BMCQE_VERSION', '1.5.1');
 define('BMCQE_PATH', plugin_dir_path(__FILE__));
 define('BMCQE_URL', plugin_dir_url(__FILE__));
 
 require_once BMCQE_PATH . 'includes/settings.php';
 require_once BMCQE_PATH . 'includes/ajax.php';
+require_once BMCQE_PATH . 'includes/booking.php';
 
 register_activation_hook(__FILE__, 'bmcqe_activate');
 function bmcqe_activate() {
+    bmcqe_install_defaults();
+    bmcqe_maybe_create_payment_page();
+}
+
+add_action('admin_init', 'bmcqe_upgrade_checks');
+function bmcqe_upgrade_checks() {
+    bmcqe_install_defaults();
+    bmcqe_maybe_create_payment_page();
+}
+
+function bmcqe_install_defaults() {
     $defaults = [
         'google_api_key' => '',
         'payment_url' => '/payment-details/',
@@ -25,11 +37,40 @@ function bmcqe_activate() {
         'large_base' => '65', 'large_included' => '10', 'large_rate' => '2.10',
         'luton_base' => '80', 'luton_included' => '10', 'luton_rate' => '2.50',
     ];
-    if (!get_option('bmcqe_settings')) {
-        add_option('bmcqe_settings', $defaults);
-    } else {
-        $existing = get_option('bmcqe_settings', []);
-        update_option('bmcqe_settings', array_merge($defaults, is_array($existing) ? $existing : []));
+
+    $existing = get_option('bmcqe_settings', []);
+    if (!is_array($existing)) {
+        $existing = [];
+    }
+
+    update_option('bmcqe_settings', array_merge($defaults, $existing));
+}
+
+function bmcqe_maybe_create_payment_page() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
+    $existing_page = get_page_by_path('payment-details');
+    if ($existing_page && $existing_page->post_status !== 'trash') {
+        return;
+    }
+
+    $page_id = wp_insert_post([
+        'post_title'   => 'Payment Details',
+        'post_name'    => 'payment-details',
+        'post_content' => '[bookmycourier_payment]',
+        'post_status'  => 'publish',
+        'post_type'    => 'page',
+    ]);
+
+    if (!is_wp_error($page_id) && $page_id) {
+        $settings = get_option('bmcqe_settings', []);
+        if (!is_array($settings)) {
+            $settings = [];
+        }
+        $settings['payment_url'] = '/payment-details/';
+        update_option('bmcqe_settings', $settings);
     }
 }
 
