@@ -1,13 +1,10 @@
-# BookMyCourier Quote Engine Changelog
+BookMyCourier Quote Engine Changelog
 
-## 1.5.1 - Payment screen repair
-- Restored loading of the payment shortcode file.
-- Repacked plugin into the correct WordPress folder structure: includes, assets/css, assets/js, assets/vehicles.
-- Added automatic Payment Details page creation with [bookmycourier_payment].
-- Added upgrade check so the page is created after plugin updates as well as fresh activation.
-- Kept quote options from v1.4.0: ASAP / dated collection, AM / PM, Same Day, Next Day and Within 2 days.
-
-## 1.4.0
-- Same Day wording.
-- Added Next Day and Within 2 days delivery discounts.
-- Added ASAP and dated AM/PM collection choices.
+Version 2.0.0
+- Added full Complete Your Booking page.
+- Added test payment flow.
+- Added customer details, contact details, goods description and special instructions.
+- Added booking reference generation.
+- Added customer and admin email notifications.
+- Kept quote calculator, vehicle choices, ASAP/Dated collection, Same Day/Next Day/Within 2 days options.
+- Updated plugin structure with includes and assets folders.
