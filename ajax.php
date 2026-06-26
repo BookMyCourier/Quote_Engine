@@ -14,8 +14,40 @@ function bmcqe_get_quote() {
     $collection = sanitize_text_field(wp_unslash($_POST['collection'] ?? ''));
     $delivery = sanitize_text_field(wp_unslash($_POST['delivery'] ?? ''));
     $vehicle = sanitize_key($_POST['vehicle'] ?? 'small');
+    $collection_date = sanitize_text_field(wp_unslash($_POST['collection_date'] ?? ''));
+    $collection_option = sanitize_key($_POST['collection_option'] ?? 'asap');
+    $collection_period = sanitize_key($_POST['collection_period'] ?? 'am');
+    $delivery_option = sanitize_key($_POST['delivery_option'] ?? 'same_day');
 
     if (!$collection || !$delivery) wp_send_json_error('Please enter both addresses.');
+    $today = current_time('Y-m-d');
+
+    if (!in_array($collection_option, ['asap', 'dated'], true)) {
+        $collection_option = 'asap';
+    }
+
+    if ($collection_option === 'asap') {
+        $collection_date = $today;
+        $collection_period = 'asap';
+    } else {
+        if (!$collection_date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $collection_date)) {
+            wp_send_json_error('Please choose a valid collection date.');
+        }
+        if ($collection_date < $today) {
+            wp_send_json_error('Collection date cannot be in the past.');
+        }
+        if (!in_array($collection_period, ['am', 'pm'], true)) {
+            wp_send_json_error('Please choose AM or PM for the collection window.');
+        }
+    }
+
+    if (!in_array($delivery_option, ['same_day', 'next_day', 'within_2_days'], true)) {
+        $delivery_option = 'same_day';
+    }
+
+    if ($delivery_option === 'same_day' && $collection_date === $today && (int) current_time('G') >= 12) {
+        wp_send_json_error('Same Day delivery is only available before 12pm for today.');
+    }
 
     $vehicles = [];
     foreach (['small','medium','large','luton'] as $v) {
@@ -62,11 +94,25 @@ function bmcqe_get_quote() {
     $rate = $vehicles[$vehicle];
     $extra = max(0, $miles - $rate['included']);
     $price = $rate['base'] + ($extra * $rate['rate']);
+    $discount_percent = 0;
+
+    if ($delivery_option === 'next_day') {
+        $discount_percent = 5;
+        $price = $price * 0.95;
+    } elseif ($delivery_option === 'within_2_days') {
+        $discount_percent = 10;
+        $price = $price * 0.90;
+    }
 
     wp_send_json_success([
         'miles' => $miles,
         'price' => number_format($price, 2),
         'included' => number_format((float)$rate['included'], 0),
         'rate' => number_format((float)$rate['rate'], 2),
+        'collection_date' => $collection_date,
+        'collection_option' => $collection_option,
+        'collection_period' => $collection_period,
+        'delivery_option' => $delivery_option,
+        'discount_percent' => $discount_percent,
     ]);
 }

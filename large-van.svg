@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 220" role="img" aria-label="Large van">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e8eef7"/></linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#071f4a"/><stop offset="1" stop-color="#1267d6"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#071f4a" flood-opacity=".18"/></filter>
+  </defs>
+  <rect width="420" height="220" fill="#fff" opacity="0"/>
+  
+  <g filter="url(#shadow)">
+    <path d="M42 55h259c30 0 57 20 67 50l19 59H32V73c0-10 4-18 10-18z" fill="url(#body)" stroke="#b7c3d4" stroke-width="3"/>
+    <path d="M302 66h47c20 13 31 34 36 66h-83V66z" fill="#d9e7f8" stroke="#b7c3d4" stroke-width="3"/>
+    <rect x="70" y="82" width="178" height="51" rx="4" fill="#f8fbff" stroke="#d3dce9"/>
+    <path d="M28 151h372v22H28z" fill="url(#blue)"/>
+    <circle cx="112" cy="164" r="24" fill="#071f4a"/><circle cx="112" cy="164" r="11" fill="#cbd5e1"/><circle cx="112" cy="164" r="5" fill="#fff"/><circle cx="330" cy="164" r="24" fill="#071f4a"/><circle cx="330" cy="164" r="11" fill="#cbd5e1"/><circle cx="330" cy="164" r="5" fill="#fff"/>
+  </g>
+  <path d="M14 106h36M4 136h44M26 168h42" stroke="#18bfd1" stroke-width="10" stroke-linecap="round"/>
+
+</svg>

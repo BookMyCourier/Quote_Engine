@@ -2,26 +2,24 @@
 /**
  * Plugin Name: BookMyCourier Quote Engine
  * Description: Instant courier quote calculator using Google Places Autocomplete and Google Routes API.
- * Version: 2.0.0
+ * Version: 1.4.0
  * Author: BookMyCourier
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BMCQE_VERSION', '2.0.0');
+define('BMCQE_VERSION', '1.4.0');
 define('BMCQE_PATH', plugin_dir_path(__FILE__));
 define('BMCQE_URL', plugin_dir_url(__FILE__));
 
 require_once BMCQE_PATH . 'includes/settings.php';
 require_once BMCQE_PATH . 'includes/ajax.php';
-require_once BMCQE_PATH . 'includes/booking.php';
 
 register_activation_hook(__FILE__, 'bmcqe_activate');
 function bmcqe_activate() {
     $defaults = [
         'google_api_key' => '',
         'payment_url' => '/payment-details/',
-        'admin_email' => get_option('admin_email'),
         'small_base' => '35', 'small_included' => '10', 'small_rate' => '1.50',
         'medium_base' => '50', 'medium_included' => '10', 'medium_rate' => '1.80',
         'large_base' => '65', 'large_included' => '10', 'large_rate' => '2.10',
@@ -44,11 +42,19 @@ function bmcqe_render_quote() {
     wp_enqueue_style('bmcqe-style', BMCQE_URL . 'assets/css/style.css', [], BMCQE_VERSION);
     wp_enqueue_script('bmcqe-quote', BMCQE_URL . 'assets/js/quote.js', [], BMCQE_VERSION, true);
 
+    $today = current_time('Y-m-d');
+    $current_hour = (int) current_time('G');
+
     wp_localize_script('bmcqe-quote', 'bmcqeData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('bmcqe_quote_nonce'),
         'hasApiKey' => !empty($api_key),
         'paymentUrl' => esc_url_raw($payment_url),
+        'today' => $today,
+        'currentHour' => $current_hour,
+        'sameDayCutoffHour' => 12,
+        'nextDayDiscountPercent' => 5,
+        'twoDayDiscountPercent' => 10,
     ]);
 
     if (!empty($api_key)) {
@@ -120,6 +126,62 @@ function bmcqe_render_quote() {
                 </div>
             </div>
 
+            <div class="bmcqe-section bmcqe-options-section">
+                <h3><span>4</span> Collection & Delivery Options</h3>
+
+                <div class="bmcqe-options-grid">
+                    <div class="bmcqe-option-group bmcqe-collection-options">
+                        <label>Collection</label>
+                        <div class="bmcqe-choice-row">
+                            <label class="bmcqe-choice selected">
+                                <input type="radio" name="bmcqe_collection_option" value="asap" checked>
+                                <span>ASAP collection</span>
+                            </label>
+                            <label class="bmcqe-choice">
+                                <input type="radio" name="bmcqe_collection_option" value="dated">
+                                <span>Dated collection</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="bmcqe-option-group bmcqe-dated-collection bmcqe-hidden">
+                        <label for="bmcqe_collection_date">Collection Date</label>
+                        <input id="bmcqe_collection_date" type="date" min="<?php echo esc_attr($today); ?>" value="<?php echo esc_attr($today); ?>">
+
+                        <label class="bmcqe-sub-label">Collection Window</label>
+                        <div class="bmcqe-choice-row bmcqe-period-row">
+                            <label class="bmcqe-choice selected">
+                                <input type="radio" name="bmcqe_collection_period" value="am" checked>
+                                <span>AM</span>
+                            </label>
+                            <label class="bmcqe-choice">
+                                <input type="radio" name="bmcqe_collection_period" value="pm">
+                                <span>PM</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="bmcqe-option-group bmcqe-delivery-options">
+                        <label>Delivery Option</label>
+                        <div class="bmcqe-choice-row">
+                            <label class="bmcqe-choice selected" id="bmcqe_same_day_choice">
+                                <input type="radio" name="bmcqe_delivery_option" value="same_day" checked>
+                                <span>Same Day</span>
+                            </label>
+                            <label class="bmcqe-choice">
+                                <input type="radio" name="bmcqe_delivery_option" value="next_day">
+                                <span>Next Day <strong>Save 5%</strong></span>
+                            </label>
+                            <label class="bmcqe-choice">
+                                <input type="radio" name="bmcqe_delivery_option" value="within_2_days">
+                                <span>Within 2 days <strong>Save 10%</strong></span>
+                            </label>
+                        </div>
+                        <small id="bmcqe_delivery_note">Same Day is available when booked before 12pm.</small>
+                    </div>
+                </div>
+            </div>
+
             <div class="bmcqe-result-panel" aria-live="polite">
                 <div class="bmcqe-price-box">
                     <span>Your Estimated Price</span>
@@ -128,61 +190,9 @@ function bmcqe_render_quote() {
                 </div>
                 <div class="bmcqe-book-box">
                     <button id="bmcqe_book_now" type="button" disabled>Book Now</button>
-                    <small>Enter details and continue to secure payment</small>
+                    <small>Proceed to payment details</small>
                 </div>
                 <p id="bmcqe_message"></p>
-            </div>
-
-            <div id="bmcqe_booking_panel" class="bmcqe-booking-panel" hidden>
-                <div class="bmcqe-booking-head">
-                    <div>
-                        <h3>Complete Your Booking</h3>
-                        <p>We only ask for the details needed to secure the courier.</p>
-                    </div>
-                    <button id="bmcqe_edit_quote" type="button">Edit quote</button>
-                </div>
-
-                <div class="bmcqe-booking-grid">
-                    <label>
-                        Full Name
-                        <input id="bmcqe_customer_name" type="text" autocomplete="name" placeholder="Your name">
-                    </label>
-                    <label>
-                        Mobile Number
-                        <input id="bmcqe_customer_phone" type="tel" autocomplete="tel" placeholder="Best contact number">
-                    </label>
-                    <label>
-                        Email Address
-                        <input id="bmcqe_customer_email" type="email" autocomplete="email" placeholder="Booking confirmation email">
-                    </label>
-                    <label>
-                        Collection Date
-                        <input id="bmcqe_collection_date" type="date">
-                    </label>
-                    <label>
-                        Preferred Time
-                        <select id="bmcqe_collection_time">
-                            <option value="ASAP">As soon as possible</option>
-                            <option value="Morning">Morning</option>
-                            <option value="Afternoon">Afternoon</option>
-                            <option value="Evening">Evening</option>
-                            <option value="Specific time requested">Specific time requested</option>
-                        </select>
-                    </label>
-                    <label class="bmcqe-full">
-                        What are you sending?
-                        <textarea id="bmcqe_items" rows="3" placeholder="Briefly describe the items, size and any access notes"></textarea>
-                    </label>
-                </div>
-
-                <div class="bmcqe-booking-summary">
-                    <div>
-                        <span>Quote total</span>
-                        <strong id="bmcqe_booking_price">—</strong>
-                    </div>
-                    <button id="bmcqe_continue_payment" type="button">Continue to Payment</button>
-                </div>
-                <p id="bmcqe_booking_message" class="bmcqe-booking-message"></p>
             </div>
 
             <div class="bmcqe-trust-row">
