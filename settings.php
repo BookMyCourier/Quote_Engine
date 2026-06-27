@@ -25,7 +25,7 @@ function bmcqe_sanitize_settings($input) {
 
     $output = array_merge($existing, is_array($input) ? $input : []);
 
-    $text_fields = ['google_api_key', 'payment_url', 'admin_email'];
+    $text_fields = ['google_api_key', 'payment_url', 'terms_url', 'admin_email'];
     foreach ($text_fields as $field) {
         if (isset($output[$field])) $output[$field] = sanitize_text_field($output[$field]);
     }
@@ -72,6 +72,13 @@ function bmcqe_render_settings_page() {
                     <td>
                         <input id="bmcqe_payment_url" type="text" name="bmcqe_settings[payment_url]" value="<?php echo esc_attr($settings['payment_url'] ?? '/complete-your-booking/'); ?>" class="regular-text" />
                         <p class="description">Usually <code>/complete-your-booking/</code>. This page should contain <code>[bookmycourier_payment]</code>.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="bmcqe_terms_url">Terms Page URL</label></th>
+                    <td>
+                        <input id="bmcqe_terms_url" type="text" name="bmcqe_settings[terms_url]" value="<?php echo esc_attr($settings['terms_url'] ?? '/terms-and-conditions/'); ?>" class="regular-text" />
+                        <p class="description">Usually <code>/terms-and-conditions/</code>. Customers must tick to confirm they have read this before completing a test payment.</p>
                     </td>
                 </tr>
                 <tr>

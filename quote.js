@@ -42,6 +42,7 @@
     if (dated) dated.classList.toggle('bmcqe-hidden', collectionOption !== 'dated');
 
     const today = (window.bmcqeData && bmcqeData.today) ? bmcqeData.today : '';
+    const tomorrow = (window.bmcqeData && bmcqeData.tomorrow) ? bmcqeData.tomorrow : today;
     const currentHour = (window.bmcqeData && bmcqeData.currentHour) ? Number(bmcqeData.currentHour) : 0;
     const cutoff = (window.bmcqeData && bmcqeData.sameDayCutoffHour) ? Number(bmcqeData.sameDayCutoffHour) : 12;
     const dateInput = qs('bmcqe_collection_date');
@@ -49,7 +50,12 @@
     const sameDayRadio = sameDayChoice ? sameDayChoice.querySelector('input') : null;
     const note = qs('bmcqe_delivery_note');
 
-    const activeDate = collectionOption === 'asap' ? today : (dateInput ? dateInput.value : today);
+    if (collectionOption === 'dated' && dateInput) {
+      dateInput.min = tomorrow;
+      if (!dateInput.value || dateInput.value <= today) dateInput.value = tomorrow;
+    }
+
+    const activeDate = collectionOption === 'asap' ? today : (dateInput ? dateInput.value : tomorrow);
     const sameDayUnavailable = activeDate === today && currentHour >= cutoff;
 
     if (sameDayChoice && sameDayRadio) {
@@ -153,12 +159,7 @@
 
         if (price) price.textContent = '£' + data.data.price;
 
-        let noteText = '';
-        if (data.data.rate_code) {
-          noteText = data.data.vehicle_label + ' rate: £' + data.data.base + ' base, includes ' + data.data.included + ' miles, then £' + data.data.rate + '/mile. Code: ' + data.data.rate_code + '.';
-        } else {
-          noteText = 'Based on your selected vehicle and delivery option.';
-        }
+        let noteText = 'Estimated total based on your selected vehicle and options.';
         if (Number(data.data.discount_percent) > 0) {
           noteText += ' ' + data.data.discount_percent + '% saving applied.';
         }

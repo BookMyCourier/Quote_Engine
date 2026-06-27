@@ -2,13 +2,13 @@
 /**
  * Plugin Name: BookMyCourier Quote Engine
  * Description: Instant courier quote, same-page booking details and test payment flow for BookMyCourier.
- * Version: 2.0.1
+ * Version: 2.0.3
  * Author: BookMyCourier
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BMCQE_VERSION', '2.0.1');
+define('BMCQE_VERSION', '2.0.3');
 define('BMCQE_PATH', plugin_dir_path(__FILE__));
 define('BMCQE_URL', plugin_dir_url(__FILE__));
 
@@ -20,18 +20,21 @@ register_activation_hook(__FILE__, 'bmcqe_activate');
 function bmcqe_activate() {
     bmcqe_install_defaults();
     bmcqe_maybe_create_booking_page();
+    bmcqe_maybe_create_terms_page();
 }
 
 add_action('admin_init', 'bmcqe_upgrade_checks');
 function bmcqe_upgrade_checks() {
     bmcqe_install_defaults();
     bmcqe_maybe_create_booking_page();
+    bmcqe_maybe_create_terms_page();
 }
 
 function bmcqe_install_defaults() {
     $defaults = [
         'google_api_key' => '',
         'payment_url' => '/complete-your-booking/',
+        'terms_url' => '/terms-and-conditions/',
         'small_base' => '35', 'small_included' => '10', 'small_rate' => '1.50',
         'medium_base' => '50', 'medium_included' => '10', 'medium_rate' => '1.80',
         'large_base' => '65', 'large_included' => '10', 'large_rate' => '2.10',
@@ -75,6 +78,36 @@ function bmcqe_maybe_create_booking_page() {
     }
 }
 
+
+function bmcqe_maybe_create_terms_page() {
+    if (!current_user_can('manage_options')) return;
+
+    $existing_page = get_page_by_path('terms-and-conditions');
+    if ($existing_page && $existing_page->post_status !== 'trash') {
+        $settings = get_option('bmcqe_settings', []);
+        if (is_array($settings)) {
+            $settings['terms_url'] = '/terms-and-conditions/';
+            update_option('bmcqe_settings', $settings);
+        }
+        return;
+    }
+
+    $page_id = wp_insert_post([
+        'post_title'   => 'Terms and Conditions',
+        'post_name'    => 'terms-and-conditions',
+        'post_content' => '<h2>BookMyCourier Terms and Conditions</h2><p>Please replace this page with your full terms and conditions before taking live customer bookings.</p><p>This should cover pricing, cancellation, liability, prohibited goods, collection windows, delivery windows and payment terms.</p>',
+        'post_status'  => 'publish',
+        'post_type'    => 'page',
+    ]);
+
+    if (!is_wp_error($page_id) && $page_id) {
+        $settings = get_option('bmcqe_settings', []);
+        if (!is_array($settings)) $settings = [];
+        $settings['terms_url'] = '/terms-and-conditions/';
+        update_option('bmcqe_settings', $settings);
+    }
+}
+
 add_shortcode('bookmycourier_quote', 'bmcqe_render_quote');
 function bmcqe_render_quote() {
     $settings = get_option('bmcqe_settings', []);
@@ -85,6 +118,7 @@ function bmcqe_render_quote() {
     wp_enqueue_script('bmcqe-quote', BMCQE_URL . 'assets/js/quote.js', [], BMCQE_VERSION, true);
 
     $today = current_time('Y-m-d');
+    $tomorrow = date('Y-m-d', strtotime($today . ' +1 day'));
     $current_hour = (int) current_time('G');
 
     wp_localize_script('bmcqe-quote', 'bmcqeData', [
@@ -93,6 +127,7 @@ function bmcqe_render_quote() {
         'hasApiKey' => !empty($api_key),
         'paymentUrl' => esc_url_raw($payment_url),
         'today' => $today,
+        'tomorrow' => $tomorrow,
         'currentHour' => $current_hour,
         'sameDayCutoffHour' => 12,
         'nextDayDiscountPercent' => 5,
@@ -186,13 +221,14 @@ function bmcqe_render_quote() {
                             <span class="bmcqe-selector-icon">📅</span>
                             <strong>Dated Collection</strong>
                             <em>Choose a collection date and a simple AM or PM window.</em>
+                            <b>Save 5%</b>
                         </label>
                     </div>
 
                     <div class="bmcqe-dated-collection bmcqe-hidden">
                         <div class="bmcqe-date-window">
                             <label for="bmcqe_collection_date">Collection Date
-                                <input id="bmcqe_collection_date" type="date" min="<?php echo esc_attr($today); ?>" value="<?php echo esc_attr($today); ?>">
+                                <input id="bmcqe_collection_date" type="date" min="<?php echo esc_attr($tomorrow); ?>" value="<?php echo esc_attr($tomorrow); ?>">
                             </label>
 
                             <div>

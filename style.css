@@ -1,4 +1,4 @@
-/* BookMyCourier Quote Engine v2.0.1 */
+/* BookMyCourier Quote Engine v2.0.3 */
 .bmcqe-wrap,.bmcqe-booking-page{max-width:1160px;margin:40px auto;padding:0 18px;color:#061b41;font-family:Inter,Arial,sans-serif}
 .bmcqe-header,.bmcqe-booking-header{text-align:center;margin-bottom:24px}
 .bmcqe-header h2,.bmcqe-booking-header h2{font-size:38px;line-height:1.1;margin:0 0 10px;color:#061b41}
@@ -108,3 +108,11 @@
   .bmcqe-book-box{text-align:center}
   .bmcqe-trust-row{grid-template-columns:1fr}
 }
+
+
+/* v2.0.3 refinements */
+.bmcqe-terms-card{background:#f8fbff}
+.bmcqe-terms-checkbox{align-items:flex-start!important;line-height:1.45;margin:0!important}
+.bmcqe-terms-checkbox input{margin-top:4px!important;min-width:18px}
+.bmcqe-terms-checkbox a{color:#0757c2;text-decoration:underline;font-weight:900}
+.bmcqe-price-box small{max-width:520px;line-height:1.45}

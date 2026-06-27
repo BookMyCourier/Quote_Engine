@@ -32,8 +32,8 @@ function bmcqe_get_quote() {
         if (!$collection_date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $collection_date)) {
             wp_send_json_error(['message' => 'Please choose a valid collection date.']);
         }
-        if ($collection_date < $today) {
-            wp_send_json_error(['message' => 'Collection date cannot be in the past.']);
+        if ($collection_date <= $today) {
+            wp_send_json_error(['message' => 'Dated Collection is available from tomorrow onwards. Please choose a future date.']);
         }
         if (!in_array($collection_period, ['am', 'pm'], true)) {
             wp_send_json_error(['message' => 'Please choose AM or PM for the collection window.']);
@@ -92,14 +92,16 @@ function bmcqe_get_quote() {
     $rate = $vehicles[$vehicle];
     $extra = max(0, $miles - $rate['included']);
     $price_before_discount = $rate['base'] + ($extra * $rate['rate']);
-    $discount_percent = 0;
+    $collection_discount_percent = ($collection_option === 'dated') ? 5 : 0;
+    $delivery_discount_percent = 0;
 
     if ($delivery_option === 'next_day') {
-        $discount_percent = 5;
+        $delivery_discount_percent = 5;
     } elseif ($delivery_option === 'within_2_days') {
-        $discount_percent = 10;
+        $delivery_discount_percent = 10;
     }
 
+    $discount_percent = $collection_discount_percent + $delivery_discount_percent;
     $price = $price_before_discount * (1 - ($discount_percent / 100));
 
     wp_send_json_success([
@@ -112,6 +114,8 @@ function bmcqe_get_quote() {
         'collection_option' => $collection_option,
         'collection_period' => $collection_period,
         'delivery_option' => $delivery_option,
+        'collection_discount_percent' => $collection_discount_percent,
+        'delivery_discount_percent' => $delivery_discount_percent,
         'discount_percent' => $discount_percent,
     ]);
 }

@@ -1,3 +1,10 @@
+
+Version 2.0.3
+- Added Save 5% badge to Dated Collection.
+- Dated Collection now starts from tomorrow only.
+- Hidden detailed mileage/rate calculations from the customer-facing estimated price note.
+- Added Terms and Conditions page setting and required acceptance checkbox before completing test payment.
+
 Version 2.0.1
 - Fixed Book Now flow to be more resilient if quote data is stored but the button remains disabled.
 - Reworked collection options into a clearer card-style selector.

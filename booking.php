@@ -35,6 +35,9 @@ function bmcqe_render_payment_page() {
     wp_enqueue_style('bmcqe-style', BMCQE_URL . 'assets/css/style.css', [], BMCQE_VERSION);
     wp_enqueue_script('bmcqe-booking', BMCQE_URL . 'assets/js/booking.js', [], BMCQE_VERSION, true);
 
+    $settings = get_option('bmcqe_settings', []);
+    $terms_url = isset($settings['terms_url']) ? trim($settings['terms_url']) : '/terms-and-conditions/';
+
     wp_localize_script('bmcqe-booking', 'bmcqeBookingData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('bmcqe_booking_nonce'),
@@ -115,6 +118,15 @@ function bmcqe_render_payment_page() {
                         </label>
                     </div>
 
+
+                    <div class="bmcqe-booking-card bmcqe-terms-card">
+                        <h3>Terms and Conditions</h3>
+                        <label class="bmcqe-checkbox bmcqe-terms-checkbox">
+                            <input type="checkbox" name="accepted_terms" value="1" required>
+                            <span>I have read and agree to the <a href="<?php echo esc_url($terms_url); ?>" target="_blank" rel="noopener">BookMyCourier Terms and Conditions</a>.</span>
+                        </label>
+                    </div>
+
                     <div class="bmcqe-booking-actions">
                         <button type="submit" id="bmcqe_test_payment_button">Complete Test Payment</button>
                         <p id="bmcqe_booking_message"></p>
@@ -170,7 +182,7 @@ function bmcqe_create_test_booking() {
         'collection','delivery','vehicle','price','miles','collection_option','collection_date',
         'collection_period','delivery_option','discount_percent','first_name','last_name',
         'email','mobile','collection_same_as_customer','collection_contact_name','collection_contact_phone',
-        'delivery_contact_name','delivery_contact_phone','goods_description','special_instructions'
+        'delivery_contact_name','delivery_contact_phone','goods_description','special_instructions','accepted_terms'
     ];
 
     $data = [];
@@ -184,6 +196,10 @@ function bmcqe_create_test_booking() {
 
     if (!is_email($data['email'])) {
         wp_send_json_error(['message' => 'Please enter a valid email address.']);
+    }
+
+    if (empty($data['accepted_terms']) || $data['accepted_terms'] !== '1') {
+        wp_send_json_error(['message' => 'Please confirm that you have read and agree to the Terms and Conditions.']);
     }
 
     $reference = 'BMC-' . date_i18n('ymd') . '-' . strtoupper(wp_generate_password(5, false, false));
